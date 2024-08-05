@@ -400,7 +400,8 @@ Token scanToken() {
 			if (match('.')) {
 				if (match('.')) return makeToken(TOKEN_ELLIPSES);
 				else return errorToken("Invalid syntax.");
-			} else return makeToken(TOKEN_DOT);
+			} else if (isDigit(peek())) return number();
+			else return makeToken(TOKEN_DOT);
 		case '"': return stringQuotation();
 		case '\'': return stringApostrophe();
 	}
