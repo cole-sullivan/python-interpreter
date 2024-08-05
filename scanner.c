@@ -126,18 +126,18 @@ static Token parseIndentation() {
 		if (scanner.indentLevel >= MAX_INDENT_STACK)
 			return errorToken("Too many levels of indentation.");
 		scanner.indentStack[scanner.indentLevel] = currentIndent;
-		printf("%d level - %d indentation", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);
+		printf("%d level - %d indentation\n", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);
 		return makeToken(TOKEN_INDENT);
 	} else if (currentIndent < scanner.indentStack[scanner.indentLevel]) {
 		while (scanner.indentLevel > 0 && currentIndent < scanner.indentStack[scanner.indentLevel])
 			scanner.indentLevel--;
 		if (currentIndent != scanner.indentStack[scanner.indentLevel])
 			return errorToken("Inconsistent indentation.");
-		printf("%d level - %d indentation", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);
+		printf("%d level - %d indentation\n", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);
 		return makeToken(TOKEN_DEDENT);
 	}
 
-	printf("%d level - %d indentation", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);
+	printf("%d level - %d indentation\n", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);
 	return makeToken(TOKEN_NO_CHANGE);
 }
 
@@ -173,6 +173,7 @@ static TokenType identifierType() {
 		case 'c': 
 			if (scanner.current - scanner.start > 1) {
 				switch (scanner.start[1]) {
+					case 'a': return checkKeyword(2, 2, "se", TOKEN_CASE);
 					case 'l': return checkKeyword(2, 3, "ass", TOKEN_CLASS);
 					case 'o': return checkKeyword(2, 6, "ntinue", TOKEN_CONTINUE);
 				}
@@ -228,6 +229,7 @@ static TokenType identifierType() {
 			}
 			break;
 		case 'l': return checkKeyword(1, 5, "ambda", TOKEN_LAMBDA);
+		case 'm': return checkKeyword(1, 4, "atch", TOKEN_MATCH);
 		case 'n':
 			if (scanner.current - scanner.start > 1) {
 				switch (scanner.start[1]) {
@@ -289,7 +291,7 @@ static Token number() {
 	return makeToken(TOKEN_NUMBER);
 }
 
-static Token string_quotation() {
+static Token stringQuotation() {
 	while (peek() != '"' && !isAtEnd()) {
 		if (peek() == '\n') scanner.line++;
 		advance();
@@ -302,7 +304,7 @@ static Token string_quotation() {
 	return makeToken(TOKEN_STRING);
 }
 
-static Token string_apostrophe() {
+static Token stringApostrophe() {
 	while (peek() != '\'' && !isAtEnd()) {
 		if (peek() == '\n') scanner.line++;
 		advance();
@@ -397,10 +399,10 @@ Token scanToken() {
 		case '.':
 			if (match('.')) {
 				if (match('.')) return makeToken(TOKEN_ELLIPSES);
-				else return errorToken("Invalid syntax .");
+				else return errorToken("Invalid syntax.");
 			} else return makeToken(TOKEN_DOT);
-		case '"': return string_quotation();
-		case '\'': return string_apostrophe();
+		case '"': return stringQuotation();
+		case '\'': return stringApostrophe();
 	}
 
 	return errorToken("Unexpected character.");
