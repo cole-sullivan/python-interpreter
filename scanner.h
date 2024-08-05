@@ -2,6 +2,7 @@
 #define SCANNER_H
 
 #define MAX_INDENT_STACK 256
+#define MAX_CONTINUATION_STACK 256
 
 typedef enum {
 	// Indentation

@@ -10,6 +10,8 @@ typedef struct {
 	int line;
 	int indentStack[MAX_INDENT_STACK];
 	int indentLevel;
+	int continuationStack[MAX_CONTINUATION_STACK];
+	int continuationLevel;
 	bool isAtLineStart;
 } Scanner;
 
@@ -21,6 +23,7 @@ void initScanner(const char* source) {
 	scanner.line = 1;
 	scanner.indentLevel = 0;
 	scanner.indentStack[0] = 0;
+	scanner.continuationLevel = 0;
 	scanner.isAtLineStart = true;
 }
 
@@ -89,8 +92,11 @@ static void skipWhitespace() {
 			case '\n':
 				scanner.line++;
 				advance();
-				scanner.isAtLineStart = true;
-				return;
+				if (scanner.continuationLevel == 0) {
+					scanner.isAtLineStart = true;
+					return;
+				}
+				break;
 			case '#':
 				// A comment goes until the end of the line
 				while (peek() != '\n' && !isAtEnd()) advance();
@@ -119,7 +125,6 @@ static int calculateIndentation() {
 
 static Token parseIndentation() {
 	int currentIndent = calculateIndentation();
-	scanner.isAtLineStart = false;
 
 	if (currentIndent > scanner.indentStack[scanner.indentLevel]) {
 		scanner.indentLevel++;
@@ -293,7 +298,7 @@ static Token number() {
 
 static Token stringQuotation() {
 	while (peek() != '"' && !isAtEnd()) {
-		if (peek() == '\n') scanner.line++;
+		if (peek() == '\n') return errorToken("EOL while scanning string literal.");
 		advance();
 	}
 
@@ -306,7 +311,7 @@ static Token stringQuotation() {
 
 static Token stringApostrophe() {
 	while (peek() != '\'' && !isAtEnd()) {
-		if (peek() == '\n') scanner.line++;
+		if (peek() == '\n') return errorToken("EOL while scanning string literal.");
 		advance();
 	}
 
@@ -317,15 +322,60 @@ static Token stringApostrophe() {
 	return makeToken(TOKEN_STRING);
 }
 
+static Token stringMultiline() {
+	while (peek() != '"' && !isAtEnd()) {
+		if (peek() == '\n') scanner.line++;
+		advance();
+	}
+
+	if (isAtEnd()) return errorToken("Unterminated string.");
+
+	// The closing quotes.
+	advance();
+	advance();
+	advance();
+	return makeToken(TOKEN_STRING);
+}
+
 Token scanToken() {
+	if (scanner.isAtLineStart) {
+		Token indentToken = parseIndentation();
+		if (indentToken.type != TOKEN_NO_CHANGE) return indentToken;
+		scanner.isAtLineStart = false;
+	}
+
 	skipWhitespace();
 	scanner.start = scanner.current;
 
 	if (isAtEnd()) return makeToken(TOKEN_EOF);
 
-	if (scanner.isAtLineStart) return parseIndentation();
-
 	char c = advance();
+
+	if (c == '\\' && peek() == '\n') {
+		advance();
+		scanner.line++;
+		return scanToken();
+	}
+
+	if (c == '(' || c == '[' || c == '{') {
+		if (scanner.continuationLevel >= MAX_CONTINUATION_STACK) {
+			return errorToken("Too many nested blocks.");
+		}
+		scanner.continuationStack[scanner.continuationLevel++] = c;
+	} else if (c == ')' || c ==']' || c == '}') {
+		if (scanner.continuationLevel <= 0) {
+			return errorToken("Unmatched closing bracket.");
+		}
+		switch (scanner.continuationStack[c]) {
+			case '(':
+				if (c != ')') return errorToken("Invalid syntax."); 
+			case '[':
+				if (c != ']') return errorToken("Invalid syntax.");
+			case '{':
+				if (c != '}') return errorToken("Invalid syntax.");
+		}
+		scanner.continuationLevel--;
+	}
 
 	if (isAlpha(c)) return identifier();
 	if (isDigit(c)) return number();
@@ -402,7 +452,9 @@ Token scanToken() {
 				else return errorToken("Invalid syntax.");
 			} else if (isDigit(peek())) return number();
 			else return makeToken(TOKEN_DOT);
-		case '"': return stringQuotation();
+		case '"': 
+			if (match('"')) if (match('"')) return stringMultiline();
+			return stringQuotation();
 		case '\'': return stringApostrophe();
 	}
 
