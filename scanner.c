@@ -8,6 +8,9 @@ typedef struct {
 	const char* start;
 	const char* current;
 	int line;
+	int indentStack[MAX_INDENT_STACK];
+	int indentLevel;
+	bool isAtLineStart;
 } Scanner;
 
 Scanner scanner;
@@ -16,6 +19,9 @@ void initScanner(const char* source) {
 	scanner.start = source;
 	scanner.current = source;
 	scanner.line = 1;
+	scanner.indentLevel = 0;
+	scanner.indentStack[0] = 0;
+	scanner.isAtLineStart = true;
 }
 
 static bool isAlpha(char c) {
@@ -83,7 +89,8 @@ static void skipWhitespace() {
 			case '\n':
 				scanner.line++;
 				advance();
-				break;
+				scanner.isAtLineStart = true;
+				return;
 			case '#':
 				// A comment goes until the end of the line
 				while (peek() != '\n' && !isAtEnd()) advance();
@@ -92,6 +99,46 @@ static void skipWhitespace() {
 				return;
 		}
 	}
+}
+
+static int calculateIndentation() {
+	int spaces = 0;
+	while (true) {
+		char c = peek();
+		if (c == ' ') {
+			spaces++;
+			advance();
+		} else if (c == '\t') {
+			spaces += 4;
+			advance();
+		} else break;
+	}
+
+	return spaces;
+}
+
+static Token parseIndentation() {
+	int currentIndent = calculateIndentation();
+	scanner.isAtLineStart = false;
+
+	if (currentIndent > scanner.indentStack[scanner.indentLevel]) {
+		scanner.indentLevel++;
+		if (scanner.indentLevel >= MAX_INDENT_STACK)
+			return errorToken("Too many levels of indentation.");
+		scanner.indentStack[scanner.indentLevel] = currentIndent;
+		printf("%d level - %d indentation", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);
+		return makeToken(TOKEN_INDENT);
+	} else if (currentIndent < scanner.indentStack[scanner.indentLevel]) {
+		while (scanner.indentLevel > 0 && currentIndent < scanner.indentStack[scanner.indentLevel])
+			scanner.indentLevel--;
+		if (currentIndent != scanner.indentStack[scanner.indentLevel])
+			return errorToken("Inconsistent indentation.");
+		printf("%d level - %d indentation", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);
+		return makeToken(TOKEN_DEDENT);
+	}
+
+	printf("%d level - %d indentation", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);
+	return makeToken(TOKEN_NO_CHANGE);
 }
 
 static TokenType checkKeyword(int start, int length,
@@ -269,12 +316,15 @@ static Token string_apostrophe() {
 }
 
 Token scanToken() {
-//	skipWhitespace();
+	skipWhitespace();
 	scanner.start = scanner.current;
 
 	if (isAtEnd()) return makeToken(TOKEN_EOF);
 
+	if (scanner.isAtLineStart) return parseIndentation();
+
 	char c = advance();
+
 	if (isAlpha(c)) return identifier();
 	if (isDigit(c)) return number();
 	
