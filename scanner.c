@@ -84,13 +84,9 @@ static void skipWhitespace() {
 				scanner.line++;
 				advance();
 				break;
-			case '/':
-				if (peekNext() == '/') {
-					// A comment goes until the end of the line
-					while (peek() != '\n' && !isAtEnd()) advance();
-				} else {
-					return;
-				}
+			case '#':
+				// A comment goes until the end of the line
+				while (peek() != '\n' && !isAtEnd()) advance();
 				break;
 			default:
 				return;
@@ -110,34 +106,118 @@ static TokenType checkKeyword(int start, int length,
 
 static TokenType identifierType() {
 	switch (scanner.start[0]) {
-		case 'a': return checkKeyword(1, 2, "nd", TOKEN_AND);
-		case 'c': return checkKeyword(1, 4, "lass", TOKEN_CLASS);
-		case 'e': return checkKeyword(1, 3, "lse", TOKEN_ELSE);
+		case 'a': 
+			if (scanner.current - scanner.start > 1) {
+				switch (scanner.start[1]) {
+					case 'n': return checkKeyword(2, 1, "d", TOKEN_AND);
+					case 's':
+						if (scanner.current - scanner.start > 2) {
+							switch (scanner.start[2]) {
+								case 's': return checkKeyword(3, 3, "ert", TOKEN_ASSERT);
+								case 'y': return checkKeyword(3, 2, "nc", TOKEN_ASYNC);
+							}
+						} else return TOKEN_AS;
+						break;
+					case 'w': return checkKeyword(2, 3, "ait", TOKEN_AWAIT);
+				}
+			}
+			break;
+		case 'b': return checkKeyword(1, 4, "reak", TOKEN_BREAK);
+		case 'c': 
+			if (scanner.current - scanner.start > 1) {
+				switch (scanner.start[1]) {
+					case 'l': return checkKeyword(2, 3, "ass", TOKEN_CLASS);
+					case 'o': return checkKeyword(2, 6, "ntinue", TOKEN_CONTINUE);
+				}
+			}
+			break;
+		case 'd':
+			if (scanner.current - scanner.start > 1) {
+				switch (scanner.start[1]) {
+					case 'e':
+						if (scanner.current - scanner.start > 2) {
+							switch (scanner.start[2]) {
+								case 'f': return checkKeyword(0, 3, "def", TOKEN_DEF);
+								case 'l': return checkKeyword(0, 3, "del", TOKEN_DEL);
+							}
+						}
+						break;
+				}
+			}
+			break;
+		case 'e': 
+			if (scanner.current - scanner.start > 1) {
+				switch(scanner.start[1]) {
+					case 'l':
+						if (scanner.current - scanner.start > 2) {
+							switch(scanner.start[2]) {
+								case 'i': return checkKeyword(3, 1, "f", TOKEN_ELIF);
+								case 's': return checkKeyword(3, 3, "e", TOKEN_ELSE);
+							}
+						}
+						break;
+					case 'x': return checkKeyword(2, 4, "cept", TOKEN_EXCEPT);
+				}
+			}
+			break;
 		case 'f':
 			if (scanner.current - scanner.start > 1) {
 				switch (scanner.start[1]) {
-					case 'a': return checkKeyword(2, 3, "lse", TOKEN_FALSE);
+					case 'i': return checkKeyword(2, 5, "nally", TOKEN_FINALLY);
 					case 'o': return checkKeyword(2, 1, "r", TOKEN_FOR);
-					case 'u': return checkKeyword(2, 1, "n", TOKEN_FUN);
+					case 'r': return checkKeyword(2, 2, "om", TOKEN_FROM);
 				}
 			}
 			break;
-		case 'i': return checkKeyword(1, 1, "f", TOKEN_IF);
-		case 'n': return checkKeyword(1, 2, "il", TOKEN_NIL);
-		case 'o': return checkKeyword(1, 1, "r", TOKEN_OR);
-		case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT);
-		case 'r': return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
-		case 's': return checkKeyword(1, 4, "uper", TOKEN_SUPER);
-		case 't':
+		case 'g': return checkKeyword(1, 5, "lobal", TOKEN_GLOBAL);
+		case 'i':
 			if (scanner.current - scanner.start > 1) {
 				switch (scanner.start[1]) {
-					case 'h': return checkKeyword(2, 2, "is", TOKEN_THIS);
-					case 'r': return checkKeyword(2, 2, "ue", TOKEN_TRUE);
+					case 'f': return TOKEN_IF;
+					case 'm': return checkKeyword(2, 4, "port", TOKEN_IMPORT);
+					case 'n': return TOKEN_IN;
+					case 's': return TOKEN_IS;
 				}
 			}
 			break;
-		case 'v': return checkKeyword(1, 2, "ar", TOKEN_VAR);
-		case 'w': return checkKeyword(1, 4, "hile", TOKEN_WHILE);
+		case 'l': return checkKeyword(1, 5, "ambda", TOKEN_LAMBDA);
+		case 'n':
+			if (scanner.current - scanner.start > 1) {
+				switch (scanner.start[1]) {
+					case 'o':
+						if (scanner.current - scanner.start > 1) {
+							switch (scanner.start[2]) {
+								case 'n': return checkKeyword(3, 5, "local", TOKEN_NONLOCAL);
+								case 't': return TOKEN_NOT;
+							}
+						}
+						break;
+				}
+			}
+			break;
+		case 'o': return checkKeyword(1, 1, "r", TOKEN_OR);
+		case 'p': return checkKeyword(1, 3, "ass", TOKEN_PASS);
+		case 'r': 
+			if (scanner.current - scanner.start > 1) {
+				switch (scanner.start[1]) {
+					case 'a': return checkKeyword(2, 3, "ise", TOKEN_RAISE);
+					case 'e': return checkKeyword(2, 4, "turn", TOKEN_RETURN);
+				}
+			}
+			break;
+		case 't': return checkKeyword(1, 2, "ry", TOKEN_TRY);
+		case 'w':
+			if (scanner.current - scanner.start > 1) {
+				switch (scanner.start[1]) {
+					case 'h': return checkKeyword(2, 3, "ile", TOKEN_WHILE);
+					case 'i': return checkKeyword(2, 2, "th", TOKEN_WITH);
+				}
+			}
+			break;
+		case 'y': return checkKeyword(1, 4, "ield", TOKEN_YIELD);
+		case 'F': return checkKeyword(1, 4, "alse", TOKEN_FALSE);
+		case 'N': return checkKeyword(1, 3, "one", TOKEN_NONE);
+		case 'T': return checkKeyword(1, 3, "rue", TOKEN_TRUE);
 	}
 
 	return TOKEN_IDENTIFIER;
@@ -162,7 +242,7 @@ static Token number() {
 	return makeToken(TOKEN_NUMBER);
 }
 
-static Token string() {
+static Token string_quotation() {
 	while (peek() != '"' && !isAtEnd()) {
 		if (peek() == '\n') scanner.line++;
 		advance();
@@ -175,8 +255,21 @@ static Token string() {
 	return makeToken(TOKEN_STRING);
 }
 
+static Token string_apostrophe() {
+	while (peek() != '\'' && !isAtEnd()) {
+		if (peek() == '\n') scanner.line++;
+		advance();
+	}
+
+	if (isAtEnd()) return errorToken("Unterminated string.");
+
+	// The closing quote.
+	advance();
+	return makeToken(TOKEN_STRING);
+}
+
 Token scanToken() {
-	skipWhitespace();
+//	skipWhitespace();
 	scanner.start = scanner.current;
 
 	if (isAtEnd()) return makeToken(TOKEN_EOF);
@@ -190,26 +283,74 @@ Token scanToken() {
 		case ')': return makeToken(TOKEN_RIGHT_PAREN);
 		case '{': return makeToken(TOKEN_LEFT_BRACE);
 		case '}': return makeToken(TOKEN_RIGHT_BRACE);
+		case '[': return makeToken(TOKEN_LEFT_BRACKET);
+		case ']': return makeToken(TOKEN_RIGHT_BRACKET);
 		case ';': return makeToken(TOKEN_SEMICOLON);
 		case ',': return makeToken(TOKEN_COMMA);
-		case '.': return makeToken(TOKEN_DOT);
-		case '-': return makeToken(TOKEN_MINUS);
-		case '+': return makeToken(TOKEN_PLUS);
-		case '/': return makeToken(TOKEN_SLASH);
-		case '*': return makeToken(TOKEN_STAR);
+		case '~': return makeToken(TOKEN_TILDE);
 		case '!':
 			return makeToken(
 				match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
+		case '%':
+			return makeToken(
+				match('=') ? TOKEN_PERCENT_EQUAL : TOKEN_PERCENT);
+		case '&':
+			return makeToken(
+				match('=') ? TOKEN_AMPER_EQUAL : TOKEN_AMPER);
+		case '+':
+			return makeToken(
+				match('=') ? TOKEN_PLUS_EQUAL : TOKEN_PLUS);
+		case ':':
+			return makeToken(
+				match('=') ? TOKEN_COLON_EQUAL : TOKEN_COLON);
 		case '=':
 			return makeToken(
 				match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
+		case '@':
+			return makeToken(
+				match('=') ? TOKEN_AT_EQUAL : TOKEN_AT);
+		case '^':
+			return makeToken(
+				match('^') ? TOKEN_CIRCUMFLEX_EQUAL : TOKEN_CIRCUMFLEX);
+		case '|':
+			return makeToken(
+				match('=') ? TOKEN_VBAR_EQUAL : TOKEN_VBAR);
+		case '-':
+			if (match('=')) return makeToken(TOKEN_MINUS_EQUAL);
+			else if (match('>')) return makeToken(TOKEN_ARROW);
+			else return makeToken(TOKEN_MINUS);
 		case '<':
-			return makeToken(
-				match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
+			if (match('<')) {
+				if (match('=')) return makeToken(TOKEN_LEFT_SHIFT_EQUAL);
+				else return makeToken(TOKEN_LEFT_SHIFT);
+			} else if (match('=')) return makeToken(TOKEN_LESS_EQUAL);
+			else if (match('>')) return makeToken(TOKEN_NOT_EQUAL);
+			else return makeToken(TOKEN_LESS);
 		case '>':
-			return makeToken(
-				match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
-		case '"': return string();
+			if (match('>')) {
+				if (match('=')) return makeToken(TOKEN_RIGHT_SHIFT_EQUAL);
+				else return makeToken(TOKEN_RIGHT_SHIFT);
+			} else if (match('=')) return makeToken(TOKEN_GREATER_EQUAL);
+			else return makeToken(TOKEN_GREATER);
+		case '*':
+			if (match('*')) {
+				if (match('=')) return makeToken(TOKEN_DOUBLESTAR_EQUAL);
+				else return makeToken(TOKEN_DOUBLESTAR);
+			} else if (match('=')) return makeToken(TOKEN_STAR_EQUAL);
+			else return makeToken(TOKEN_STAR);
+		case '/':
+			if (match('/')) {
+				if (match('=')) return makeToken(TOKEN_DOUBLESLASH_EQUAL);
+				else return makeToken(TOKEN_DOUBLESLASH);
+			} else if (match('=')) return makeToken(TOKEN_SLASH_EQUAL);
+			else return makeToken(TOKEN_SLASH);
+		case '.':
+			if (match('.')) {
+				if (match('.')) return makeToken(TOKEN_ELLIPSES);
+				else return errorToken("Invalid syntax .");
+			} else return makeToken(TOKEN_DOT);
+		case '"': return string_quotation();
+		case '\'': return string_apostrophe();
 	}
 
 	return errorToken("Unexpected character.");
