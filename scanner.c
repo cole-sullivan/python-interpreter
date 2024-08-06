@@ -296,21 +296,8 @@ static Token number() {
 	return makeToken(TOKEN_NUMBER);
 }
 
-static Token stringQuotation() {
-	while (peek() != '"' && !isAtEnd()) {
-		if (peek() == '\n') return errorToken("EOL while scanning string literal.");
-		advance();
-	}
-
-	if (isAtEnd()) return errorToken("Unterminated string.");
-
-	// The closing quote.
-	advance();
-	return makeToken(TOKEN_STRING);
-}
-
-static Token stringApostrophe() {
-	while (peek() != '\'' && !isAtEnd()) {
+static Token string(char c) {
+	while (peek() != c && !isAtEnd()) {
 		if (peek() == '\n') return errorToken("EOL while scanning string literal.");
 		advance();
 	}
@@ -454,8 +441,8 @@ Token scanToken() {
 			else return makeToken(TOKEN_DOT);
 		case '"': 
 			if (match('"')) if (match('"')) return stringMultiline();
-			return stringQuotation();
-		case '\'': return stringApostrophe();
+			return string(c);
+		case '\'': return string(c);
 	}
 
 	return errorToken("Unexpected character.");
