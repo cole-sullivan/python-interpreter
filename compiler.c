@@ -136,16 +136,36 @@ static void expression();
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
+static void not_() {
+	parsePrecedence(PREC_NOT);
+	emitByte(OP_NOT);
+}
+
 static void binary() {
 	TokenType operatorType = parser.previous.type;
 	ParseRule* rule = getRule(operatorType);
 	parsePrecedence((Precedence)(rule->precedence + 1));
 
 	switch (operatorType) {
+		case TOKEN_BANG_EQUAL: emitByte(OP_NOT_EQUAL); break;
+		case TOKEN_EQUAL_EQUAL: emitByte(OP_EQUAL); break;
+		case TOKEN_GREATER: emitByte(OP_GREATER); break;
+		case TOKEN_GREATER_EQUAL: emitByte(OP_GREATER_EQUAL); break;
+		case TOKEN_LESS: emitByte(OP_LESS); break;
+		case TOKEN_LESS_EQUAL: emitByte(OP_LESS_EQUAL); break;
 		case TOKEN_PLUS: emitByte(OP_ADD); break;
 		case TOKEN_MINUS: emitByte(OP_SUBTRACT); break;
 		case TOKEN_STAR: emitByte(OP_MULTIPLY); break;
 		case TOKEN_SLASH: emitByte(OP_DIVIDE); break;
+		default: return;
+	}
+}
+
+static void literal() {
+	switch (parser.previous.type) {
+		case TOKEN_FALSE: emitByte(OP_FALSE); break;
+		case TOKEN_NONE: emitByte(OP_NONE); break;
+		case TOKEN_TRUE: emitByte(OP_TRUE); break;
 		default: return;
 	}
 }
@@ -157,7 +177,7 @@ static void grouping() {
 
 static void number() {
 	double value = strtod(parser.previous.start, NULL);
-	emitConstant(value);
+	emitConstant(NUMBER_VAL(value));
 }
 
 static void unary() {
@@ -183,7 +203,7 @@ ParseRule rules[] = {
 	[TOKEN_SEMICOLON]         = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_TILDE]             = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_BANG]              = {NULL,     NULL,   PREC_NONE},
-	[TOKEN_BANG_EQUAL]        = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_BANG_EQUAL]        = {NULL,     binary, PREC_COMPARISON},
 	[TOKEN_PERCENT]           = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_PERCENT_EQUAL]     = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_AMPER]             = {NULL,     NULL,   PREC_NONE},
@@ -193,7 +213,7 @@ ParseRule rules[] = {
 	[TOKEN_COLON]             = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_COLON_EQUAL]       = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_EQUAL]             = {NULL,     NULL,   PREC_NONE},
-	[TOKEN_EQUAL_EQUAL]       = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_EQUAL_EQUAL]       = {NULL,     binary, PREC_COMPARISON},
 	[TOKEN_AT]                = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_AT_EQUAL]          = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_CIRCUMFLEX]        = {NULL,     NULL,   PREC_NONE},
@@ -202,10 +222,10 @@ ParseRule rules[] = {
 	[TOKEN_VBAR_EQUAL]        = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_MINUS]             = {unary,    binary, PREC_TERM},
 	[TOKEN_MINUS_EQUAL]       = {NULL,     NULL,   PREC_NONE},
-	[TOKEN_GREATER]           = {NULL,     NULL,   PREC_NONE},
-	[TOKEN_GREATER_EQUAL]     = {NULL,     NULL,   PREC_NONE},
-	[TOKEN_LESS]              = {NULL,     NULL,   PREC_NONE},
-	[TOKEN_LESS_EQUAL]        = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_GREATER]           = {NULL,     binary, PREC_COMPARISON},
+	[TOKEN_GREATER_EQUAL]     = {NULL,     binary, PREC_COMPARISON},
+	[TOKEN_LESS]              = {NULL,     binary, PREC_COMPARISON},
+	[TOKEN_LESS_EQUAL]        = {NULL,     binary, PREC_COMPARISON},
 	[TOKEN_STAR]              = {NULL,     binary, PREC_FACTOR},
 	[TOKEN_STAR_EQUAL]        = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_SLASH]             = {NULL,     binary, PREC_FACTOR},
@@ -249,7 +269,7 @@ ParseRule rules[] = {
 	[TOKEN_LAMBDA]            = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_MATCH]             = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_NONLOCAL]          = {NULL,     NULL,   PREC_NONE},
-	[TOKEN_NOT]               = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_NOT]               = {not_,     NULL,   PREC_NOT},
 	[TOKEN_OR]                = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_PASS]              = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_RAISE]             = {NULL,     NULL,   PREC_NONE},
@@ -258,9 +278,9 @@ ParseRule rules[] = {
 	[TOKEN_WHILE]             = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_WITH]              = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_YIELD]             = {NULL,     NULL,   PREC_NONE},
-	[TOKEN_FALSE]             = {NULL,     NULL,   PREC_NONE},
-	[TOKEN_NONE]              = {NULL,     NULL,   PREC_NONE},
-	[TOKEN_TRUE]              = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_FALSE]             = {literal,  NULL,   PREC_NONE},
+	[TOKEN_NONE]              = {literal,  NULL,   PREC_NONE},
+	[TOKEN_TRUE]              = {literal,  NULL,   PREC_NONE},
 };
 
 static void parsePrecedence(Precedence precedence) {
