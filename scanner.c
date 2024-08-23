@@ -439,9 +439,7 @@ Token scanToken() {
 				else return errorToken("Invalid syntax.");
 			} else if (isDigit(peek())) return number();
 			else return makeToken(TOKEN_DOT);
-		case '"': 
-			if (match('"')) if (match('"')) return stringMultiline();
-			return string(c);
+		case '"': return string(c);
 		case '\'': return string(c);
 	}
 
