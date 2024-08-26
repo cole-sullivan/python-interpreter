@@ -395,6 +395,11 @@ bool compile(const char* source, Chunk* chunk) {
 	advance();
 
 	while (!match(TOKEN_EOF)) {
+		if (check(TOKEN_NEWLINE)) {
+			advance();
+			continue;
+		}
+
 		declaration();
 	}
 

@@ -89,14 +89,6 @@ static void skipWhitespace() {
 			case '\t':
 				advance();
 				break;
-			case '\n':
-				scanner.line++;
-				advance();
-				if (scanner.continuationLevel == 0) {
-					scanner.isAtLineStart = true;
-					return;
-				}
-				break;
 			case '#':
 				// A comment goes until the end of the line
 				while (peek() != '\n' && !isAtEnd()) advance();
@@ -441,6 +433,10 @@ Token scanToken() {
 			else return makeToken(TOKEN_DOT);
 		case '"': return string(c);
 		case '\'': return string(c);
+		case '\n':
+			scanner.line++;
+			if (scanner.continuationLevel == 0) scanner.isAtLineStart = true;
+			return makeToken(TOKEN_NEWLINE);
 	}
 
 	return errorToken("Unexpected character.");
