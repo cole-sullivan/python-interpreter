@@ -1,4 +1,3 @@
-x = 1
-if x == 1:
-    print("x is 1.")
-y = 2
+breakfast = "beignets"
+beverage = "cafe au lait"
+breakfast = "beignets with " + beverage

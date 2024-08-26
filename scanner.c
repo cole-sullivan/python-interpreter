@@ -441,6 +441,14 @@ Token scanToken() {
 			else return makeToken(TOKEN_DOT);
 		case '"': return string(c);
 		case '\'': return string(c);
+		case '\n':
+				scanner.line++;
+				advance();
+				if (scanner.continuationLevel == 0) {
+					scanner.isAtLineStart = true;
+					return makeToken(TOKEN_NEWLINE);
+				}
+				break;
 	}
 
 	return errorToken("Unexpected character.");
