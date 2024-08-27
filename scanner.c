@@ -123,18 +123,18 @@ static Token parseIndentation() {
 		if (scanner.indentLevel >= MAX_INDENT_STACK)
 			return errorToken("Too many levels of indentation.");
 		scanner.indentStack[scanner.indentLevel] = currentIndent;
-		printf("%d level - %d indentation\n", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);
+		/*printf("%d level - %d indentation\n", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);*/
 		return makeToken(TOKEN_INDENT);
 	} else if (currentIndent < scanner.indentStack[scanner.indentLevel]) {
 		while (scanner.indentLevel > 0 && currentIndent < scanner.indentStack[scanner.indentLevel])
 			scanner.indentLevel--;
 		if (currentIndent != scanner.indentStack[scanner.indentLevel])
 			return errorToken("Inconsistent indentation.");
-		printf("%d level - %d indentation\n", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);
+		/*printf("%d level - %d indentation\n", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);*/
 		return makeToken(TOKEN_DEDENT);
 	}
 
-	printf("%d level - %d indentation\n", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);
+	/*printf("%d level - %d indentation\n", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);*/
 	return makeToken(TOKEN_NO_CHANGE);
 }
 
