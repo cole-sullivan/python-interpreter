@@ -1,3 +1,14 @@
-breakfast = "beignets"
-beverage = "cafe au lait"
-breakfast = "beignets with " + beverage
+a = "A"
+    b = "B"
+    c = "C"
+    c
+    b
+    d = "D"
+    e = "E"
+    f = "F"
+    a
+    b
+    c
+    d
+    e
+    f

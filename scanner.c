@@ -318,9 +318,9 @@ static Token stringMultiline() {
 
 Token scanToken() {
 	if (scanner.isAtLineStart) {
+		scanner.isAtLineStart = false;
 		Token indentToken = parseIndentation();
 		if (indentToken.type != TOKEN_NO_CHANGE) return indentToken;
-		scanner.isAtLineStart = false;
 	}
 
 	skipWhitespace();
