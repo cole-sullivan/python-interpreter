@@ -128,6 +128,13 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
 	emitByte(byte2);
 }
 
+static int emitJump(uint8_t instruction) {
+	emitByte(instruction);
+	emitByte(0xff);
+	emitByte(0xff);
+	return currentChunk()->count - 2;
+}
+
 static void emitReturn() {
 	emitByte(OP_RETURN);
 }
@@ -144,6 +151,17 @@ static uint8_t makeConstant(Value value) {
 
 static void emitConstant(Value value) {
 	emitBytes(OP_CONSTANT, makeConstant(value));
+}
+
+static void patchJump(int offset) {
+	int jump = currentChunk()->count - offset - 2;
+
+	if (jump > UINT16_MAX) {
+		error("Too much code to jump over.");
+	}
+
+	currentChunk()->code[offset] = (jump >> 8) & 0xff;
+	currentChunk()->code[offset + 1] = jump & 0xff;
 }
 
 static void initCompiler(Compiler* compiler) {
@@ -428,7 +446,7 @@ static void expression() {
 }
 
 static void block() {
-	while (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
+	while (!match(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
 		if (check(TOKEN_NEWLINE)) {
 			advance();
 			continue;
@@ -436,15 +454,42 @@ static void block() {
 
 		declaration();
 	}
-
-	if (!check(TOKEN_EOF)) {
-		advance();
-	}
 }
 
 static void expressionStatement() {
 	expression();
 	emitByte(OP_POP);
+}
+
+static void ifStatement() {
+	expression();
+
+	consume(TOKEN_COLON, "Expect ':' after if statement.");
+	consume(TOKEN_NEWLINE, "Invalid syntax.");
+	consume(TOKEN_INDENT, "Invalid syntax.");
+	
+	int thenJump = emitJump(OP_JUMP_IF_FALSE);
+	emitByte(OP_POP);
+	block();
+
+	int elseJump = emitJump(OP_JUMP);
+
+	patchJump(thenJump);
+	emitByte(OP_POP);
+
+	if (match(TOKEN_ELIF)) {
+		ifStatement();
+	}
+
+	if (match(TOKEN_ELSE)) {
+		consume(TOKEN_COLON, "Expect ':' after 'else'.");
+		consume(TOKEN_NEWLINE, "Invalid syntax.");
+		consume(TOKEN_INDENT, "Invalid syntax.");
+
+		block();
+	}
+
+	patchJump(elseJump);
 }
 
 static void synchronize() {
@@ -474,7 +519,9 @@ static void declaration() {
 }
 
 static void statement() {
-	if (match(TOKEN_INDENT)) {
+	if (match(TOKEN_IF)) {
+		ifStatement();
+	} else if (match(TOKEN_INDENT)) {
 		beginScope();
 		block();
 		endScope();

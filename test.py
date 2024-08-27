@@ -1,14 +1,9 @@
-a = "A"
-    b = "B"
-    c = "C"
-    c
-    b
-    d = "D"
-    e = "E"
-    f = "F"
-    a
-    b
-    c
-    d
-    e
-    f
+x = 1
+if x < 0:
+    "Negative"
+elif x == 0:
+    "Zero"
+elif x == 1:
+    "One"
+else:
+    "More"
