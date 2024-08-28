@@ -128,6 +128,16 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
 	emitByte(byte2);
 }
 
+static void emitLoop(int loopStart) {
+	emitByte(OP_LOOP);
+
+	int offset = currentChunk()->count - loopStart + 2;
+	if (offset > UINT16_MAX) error("Loop body too large.");
+
+	emitByte((offset >> 8) & 0xff);
+	emitByte(offset & 0xff);
+}
+
 static int emitJump(uint8_t instruction) {
 	emitByte(instruction);
 	emitByte(0xff);
@@ -253,6 +263,7 @@ static void binary(bool canAssign) {
 		case TOKEN_MINUS: emitByte(OP_SUBTRACT); break;
 		case TOKEN_STAR: emitByte(OP_MULTIPLY); break;
 		case TOKEN_SLASH: emitByte(OP_DIVIDE); break;
+		case TOKEN_PERCENT: emitByte(OP_MODULO); break;
 		default: return;
 	}
 }
@@ -274,6 +285,26 @@ static void grouping(bool canAssign) {
 static void number(bool canAssign) {
 	double value = strtod(parser.previous.start, NULL);
 	emitConstant(NUMBER_VAL(value));
+}
+
+static void and_(bool canAssign) {
+	int endJump = emitJump(OP_JUMP_IF_FALSE);
+
+	emitByte(OP_POP);
+	parsePrecedence(PREC_AND);
+
+	patchJump(endJump);
+}
+
+static void or_(bool canAssign) {
+	int elseJump = emitJump(OP_JUMP_IF_FALSE);
+	int endJump = emitJump(OP_JUMP);
+
+	patchJump(elseJump);
+	emitByte(OP_POP);
+
+	parsePrecedence(PREC_OR);
+	patchJump(endJump);
 }
 
 static void string(bool canAssign) {
@@ -336,7 +367,7 @@ ParseRule rules[] = {
 	[TOKEN_TILDE]             = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_BANG]              = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_BANG_EQUAL]        = {NULL,     binary, PREC_COMPARISON},
-	[TOKEN_PERCENT]           = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_PERCENT]           = {NULL,     binary, PREC_FACTOR},
 	[TOKEN_PERCENT_EQUAL]     = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_AMPER]             = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_AMPER_EQUAL]       = {NULL,     NULL,   PREC_NONE},
@@ -376,7 +407,7 @@ ParseRule rules[] = {
 	[TOKEN_IDENTIFIER]        = {variable, NULL,   PREC_NONE},
 	[TOKEN_STRING]            = {string,   NULL,   PREC_NONE},
 	[TOKEN_NUMBER]            = {number,   NULL,   PREC_NONE},
-	[TOKEN_AND]               = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_AND]               = {NULL,     and_,   PREC_AND},
 	[TOKEN_AS]                = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_ASSERT]            = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_ASYNC]             = {NULL,     NULL,   PREC_NONE},
@@ -402,7 +433,7 @@ ParseRule rules[] = {
 	[TOKEN_MATCH]             = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_NONLOCAL]          = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_NOT]               = {not_,     NULL,   PREC_NOT},
-	[TOKEN_OR]                = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_OR]                = {NULL,     or_,    PREC_OR},
 	[TOKEN_PASS]              = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_RAISE]             = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_RETURN]            = {NULL,     NULL,   PREC_NONE},
@@ -479,9 +510,7 @@ static void ifStatement() {
 
 	if (match(TOKEN_ELIF)) {
 		ifStatement();
-	}
-
-	if (match(TOKEN_ELSE)) {
+	} else if (match(TOKEN_ELSE)) {
 		consume(TOKEN_COLON, "Expect ':' after 'else'.");
 		consume(TOKEN_NEWLINE, "Invalid syntax.");
 		consume(TOKEN_INDENT, "Invalid syntax.");
@@ -490,6 +519,23 @@ static void ifStatement() {
 	}
 
 	patchJump(elseJump);
+}
+
+static void whileStatement() {
+	int loopStart = currentChunk()->count;
+	expression();
+
+	consume(TOKEN_COLON, "Expect ':' after while statement.");
+	consume(TOKEN_NEWLINE, "Invalid syntax.");
+	consume(TOKEN_INDENT, "Invalid syntax.");
+
+	int exitJump = emitJump(OP_JUMP_IF_FALSE);
+	emitByte(OP_POP);
+	block();
+	emitLoop(loopStart);
+
+	patchJump(exitJump);
+	emitByte(OP_POP);
 }
 
 static void synchronize() {
@@ -521,6 +567,8 @@ static void declaration() {
 static void statement() {
 	if (match(TOKEN_IF)) {
 		ifStatement();
+	} else if (match(TOKEN_WHILE)) {
+		whileStatement();
 	} else if (match(TOKEN_INDENT)) {
 		beginScope();
 		block();

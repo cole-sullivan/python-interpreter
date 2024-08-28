@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "common.h"
 #include "compiler.h"
@@ -169,6 +170,18 @@ static InterpretResult run() {
 			case OP_SUBTRACT:      BINARY_OP(NUMBER_VAL, -); break;
 			case OP_MULTIPLY:      BINARY_OP(NUMBER_VAL, *); break;
 			case OP_DIVIDE:        BINARY_OP(NUMBER_VAL, /); break;
+			case OP_MODULO: {
+				if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
+					double b = AS_NUMBER(pop());
+					double a = AS_NUMBER(pop());
+					push(NUMBER_VAL(fmod(a, b)));
+				} else {
+					runtimeError(
+						"Operands must be two numbers.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				break;
+			}
 			case OP_NOT:
 				push(BOOL_VAL(isFalsey(pop())));
 				break;
@@ -186,6 +199,11 @@ static InterpretResult run() {
 			case OP_JUMP_IF_FALSE: {
 				uint16_t offset = READ_SHORT();
 				if (isFalsey(peek(0))) vm.ip += offset;
+				break;
+			}
+			case OP_LOOP: {
+				uint16_t offset = READ_SHORT();
+				vm.ip -= offset;
 				break;
 			}
 			case OP_RETURN: {
