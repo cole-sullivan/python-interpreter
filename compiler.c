@@ -56,7 +56,8 @@ typedef enum {
 	TYPE_SCRIPT
 } FunctionType;
 
-typedef struct {
+typedef struct Compiler {
+	struct Compiler* enclosing;
 	ObjFunction* function;
 	FunctionType type;
 
@@ -182,12 +183,17 @@ static void patchJump(int offset) {
 }
 
 static void initCompiler(Compiler* compiler, FunctionType type) {
+	compiler->enclosing = current;
 	compiler->function = NULL;
 	compiler->type = type;
 	compiler->localCount = 0;
 	compiler->scopeDepth = 0;
 	compiler->function = newFunction();
 	current = compiler;
+	if (type != TYPE_SCRIPT) {
+		current->function->name = copyString(parser.previous.start,
+											parser.previous.length);
+	}
 
 	Local* local = &current->locals[current->localCount++];
 	local->depth = 0;
@@ -206,6 +212,7 @@ static ObjFunction* endCompiler() {
 	}
 #endif
 
+	current = current->enclosing;
 	return function;
 }
 
@@ -260,6 +267,13 @@ static void addLocal(Token name) {
 	Local* local = &current->locals[current->localCount++];
 	local->name = name;
 	local->depth = current->scopeDepth;
+}
+
+static void declareVariable() {
+	if (current->scopeDepth == 0) return;
+
+	Token* name = &parser.previous;
+	addLocal(*name);
 }
 
 static void not_(bool canAssign) {
@@ -488,6 +502,25 @@ static void parsePrecedence(Precedence precedence) {
 	}
 }
 
+static uint8_t parseVariable(const char* errorMessage) {
+	consume(TOKEN_IDENTIFIER, errorMessage);
+
+	declareVariable();
+	if (current->scopeDepth > 0) return 0;
+
+	return identifierConstant(&parser.previous);
+}
+
+static void defineVariable(uint8_t global) {
+	if (current->scopeDepth > 0) {
+		current->locals[current->localCount - 1].depth =
+			current->scopeDepth;
+		return;
+	}
+
+	emitBytes(OP_SET_GLOBAL, global);
+}
+
 static ParseRule* getRule(TokenType type) {
 	return &rules[type];
 }
@@ -505,6 +538,43 @@ static void block() {
 
 		declaration();
 	}
+}
+
+static void function(FunctionType type) {
+	Compiler compiler;
+	initCompiler(&compiler, type);
+	beginScope();
+
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
+	if (!check(TOKEN_RIGHT_PAREN)) {
+		do {
+			current->function->arity++;
+			if (current->function->arity > 255) {
+				errorAtCurrent("Can't have more than 255 parameters.");
+			}
+			uint8_t constant = parseVariable("Expect parameter name.");
+			defineVariable(constant);
+		} while (match(TOKEN_COMMA));
+	}
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+	consume(TOKEN_COLON, "Expect ':' before function body.");
+	block();
+
+	ObjFunction* function = endCompiler();
+	emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+}
+
+static void funDeclaration() {
+	uint8_t global = parseVariable("Expect function name");
+	printf("\n\nSCOPE DEPTH (1):\n              %d\n\n", current->scopeDepth);
+	if (current->scopeDepth > 0) {
+		current->locals[current->localCount - 1].depth =
+			current->scopeDepth;
+	}
+	printf("\n\nSCOPE DEPTH (2):\n              %d\n\n", current->scopeDepth);
+	function(TYPE_FUNCTION);
+	printf("\n\nSCOPE DEPTH (3):\n              %d\n\n", current->scopeDepth);
+	defineVariable(global);	
 }
 
 static void expressionStatement() {
@@ -579,7 +649,11 @@ static void synchronize() {
 }
 
 static void declaration() {
-	statement();	
+	if (match(TOKEN_DEF)) {
+		funDeclaration();
+	} else {
+		statement();	
+	}
 
 	if (parser.panicMode) synchronize();
 }
