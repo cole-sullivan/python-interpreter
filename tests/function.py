@@ -14,5 +14,5 @@ def testcase3(var):
         return "Failure... [3]"
 
 testcase1()
-testcase2(True)
-testcase3()
+testcase2()
+testcase3(True)

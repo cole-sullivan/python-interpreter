@@ -13,6 +13,7 @@ typedef struct {
 	int continuationStack[MAX_CONTINUATION_STACK];
 	int continuationLevel;
 	bool isAtLineStart;
+	int dedentCount;
 } Scanner;
 
 Scanner scanner;
@@ -25,6 +26,7 @@ void initScanner(const char* source) {
 	scanner.indentStack[0] = 0;
 	scanner.continuationLevel = 0;
 	scanner.isAtLineStart = true;
+	scanner.dedentCount = 0;
 }
 
 static bool isAlpha(char c) {
@@ -123,18 +125,23 @@ static Token parseIndentation() {
 		if (scanner.indentLevel >= MAX_INDENT_STACK)
 			return errorToken("Too many levels of indentation.");
 		scanner.indentStack[scanner.indentLevel] = currentIndent;
-		/*printf("%d level - %d indentation\n", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);*/
 		return makeToken(TOKEN_INDENT);
 	} else if (currentIndent < scanner.indentStack[scanner.indentLevel]) {
-		while (scanner.indentLevel > 0 && currentIndent < scanner.indentStack[scanner.indentLevel])
+		int dedentCount = -1;
+		while(scanner.indentLevel > 0 &&
+				currentIndent < scanner.indentStack[scanner.indentLevel]) {
+			dedentCount++;
 			scanner.indentLevel--;
-		if (currentIndent != scanner.indentStack[scanner.indentLevel])
+		}
+
+		if (currentIndent != scanner.indentStack[scanner.indentLevel]) {
 			return errorToken("Inconsistent indentation.");
-		/*printf("%d level - %d indentation\n", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);*/
+		}
+
+		if (dedentCount > -1) scanner.dedentCount = dedentCount;
 		return makeToken(TOKEN_DEDENT);
 	}
 
-	/*printf("%d level - %d indentation\n", scanner.indentLevel, scanner.indentStack[scanner.indentLevel]);*/
 	return makeToken(TOKEN_NO_CHANGE);
 }
 
@@ -317,6 +324,11 @@ static Token stringMultiline() {
 }
 
 Token scanToken() {
+	if (scanner.dedentCount > 0) {
+		scanner.dedentCount--;
+		return makeToken(TOKEN_DEDENT);
+	}
+
 	if (scanner.isAtLineStart && peek() != '\n') {
 		scanner.isAtLineStart = false;
 		Token indentToken = parseIndentation();
