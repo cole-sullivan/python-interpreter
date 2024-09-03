@@ -317,7 +317,7 @@ static Token stringMultiline() {
 }
 
 Token scanToken() {
-	if (scanner.isAtLineStart) {
+	if (scanner.isAtLineStart && peek() != '\n') {
 		scanner.isAtLineStart = false;
 		Token indentToken = parseIndentation();
 		if (indentToken.type != TOKEN_NO_CHANGE) return indentToken;
