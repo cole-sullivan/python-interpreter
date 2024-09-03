@@ -154,6 +154,7 @@ static int emitJump(uint8_t instruction) {
 }
 
 static void emitReturn() {
+	emitByte(OP_NONE);
 	emitByte(OP_RETURN);
 }
 
@@ -276,6 +277,21 @@ static void declareVariable() {
 	addLocal(*name);
 }
 
+static uint8_t argumentList() {
+	uint8_t argCount = 0;
+	if (!check(TOKEN_RIGHT_PAREN)) {
+		do {
+			expression();
+			if (argCount == 255) {
+				error("Can't have more than 255 arguments.");
+			}
+			argCount++;
+		} while (match(TOKEN_COMMA));
+	}
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+	return argCount;
+}
+
 static void not_(bool canAssign) {
 	parsePrecedence(PREC_NOT);
 	emitByte(OP_NOT);
@@ -300,6 +316,11 @@ static void binary(bool canAssign) {
 		case TOKEN_PERCENT: emitByte(OP_MODULO); break;
 		default: return;
 	}
+}
+
+static void call(bool canAssign) {
+	uint8_t argCount = argumentList();
+	emitBytes(OP_CALL, argCount);
 }
 
 static void literal(bool canAssign) {
@@ -389,7 +410,7 @@ static void unary(bool canAssign) {
 }
 
 ParseRule rules[] = {
-	[TOKEN_LEFT_PAREN]        = {grouping, NULL,   PREC_NONE},
+	[TOKEN_LEFT_PAREN]        = {grouping, call,   PREC_CALL},
 	[TOKEN_RIGHT_PAREN]       = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_LEFT_BRACE]        = {NULL,     NULL,   PREC_NONE}, 
 	[TOKEN_RIGHT_BRACE]       = {NULL,     NULL,   PREC_NONE},
@@ -513,8 +534,6 @@ static uint8_t parseVariable(const char* errorMessage) {
 
 static void defineVariable(uint8_t global) {
 	if (current->scopeDepth > 0) {
-		current->locals[current->localCount - 1].depth =
-			current->scopeDepth;
 		return;
 	}
 
@@ -527,6 +546,20 @@ static ParseRule* getRule(TokenType type) {
 
 static void expression() {
 	parsePrecedence(PREC_ASSIGNMENT);
+}
+
+static void returnStatement() {
+	if (current->type == TYPE_SCRIPT) {
+		error("Can't return from top-level code.");
+	}
+
+	if (match(TOKEN_NEWLINE)) {
+		emitReturn();
+	} else {
+		expression();
+		consume(TOKEN_NEWLINE, "Syntax error.");
+		emitByte(OP_RETURN);
+	}
 }
 
 static void block() {
@@ -553,28 +586,23 @@ static void function(FunctionType type) {
 				errorAtCurrent("Can't have more than 255 parameters.");
 			}
 			uint8_t constant = parseVariable("Expect parameter name.");
-			defineVariable(constant);
+			defineVariable(constant);	
 		} while (match(TOKEN_COMMA));
 	}
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
 	consume(TOKEN_COLON, "Expect ':' before function body.");
+	consume(TOKEN_NEWLINE, "Syntax error.");
+	consume(TOKEN_INDENT, "Syntax error.");
 	block();
-
+		
 	ObjFunction* function = endCompiler();
 	emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
 }
 
 static void funDeclaration() {
 	uint8_t global = parseVariable("Expect function name");
-	printf("\n\nSCOPE DEPTH (1):\n              %d\n\n", current->scopeDepth);
-	if (current->scopeDepth > 0) {
-		current->locals[current->localCount - 1].depth =
-			current->scopeDepth;
-	}
-	printf("\n\nSCOPE DEPTH (2):\n              %d\n\n", current->scopeDepth);
 	function(TYPE_FUNCTION);
-	printf("\n\nSCOPE DEPTH (3):\n              %d\n\n", current->scopeDepth);
-	defineVariable(global);	
+	defineVariable(global);
 }
 
 static void expressionStatement() {
@@ -661,6 +689,8 @@ static void declaration() {
 static void statement() {
 	if (match(TOKEN_IF)) {
 		ifStatement();
+	} else if (match(TOKEN_RETURN)) {
+		returnStatement();
 	} else if (match(TOKEN_WHILE)) {
 		whileStatement();
 	} else if (match(TOKEN_INDENT)) {

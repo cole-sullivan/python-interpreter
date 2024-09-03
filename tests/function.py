@@ -1,10 +1,5 @@
-def a():
-    b()
+def calculate_sum(a, b):
+    sum = a + b
+    return sum
 
-def b():
-    c()
-
-def c():
-    c("too", "many")
-
-a()
+calculate_sum(2, 3)
