@@ -13,6 +13,14 @@
 
 VM vm;
 
+static Value printNative(int argCount, Value* args) {
+	for (int i = 0; i < argCount; i++) {
+		printValue(args[i]);
+		if (i + 1 != argCount) printf(" ");
+	}
+	printf("\n");
+}
+
 static void resetStack() {
 	vm.stackTop = vm.stack;
 	vm.frameCount = 0;
@@ -41,12 +49,22 @@ static void runtimeError(const char* format, ...) {
 	resetStack();
 }
 
+static void defineNative(const char* name, NativeFn function) {
+	push(OBJ_VAL(copyString(name, (int)strlen(name))));
+	push(OBJ_VAL(newNative(function)));
+	tableSet(&vm.globals, AS_STRING(vm.stack[0]), vm.stack[1]);
+	pop();
+	pop();
+}
+
 void initVM() {
 	resetStack();
 	vm.objects = NULL;
 
 	initTable(&vm.globals);
 	initTable(&vm.strings);
+
+	defineNative("print", printNative);
 }
 
 void freeVM() {
@@ -93,6 +111,13 @@ static bool callValue(Value callee, int argCount) {
 		switch(OBJ_TYPE(callee)) {
 			case OBJ_FUNCTION:
 				return call(AS_FUNCTION(callee), argCount);
+			case OBJ_NATIVE: {
+				NativeFn native = AS_NATIVE(callee);
+				Value result = native(argCount, vm.stackTop - argCount);
+				vm.stackTop -= argCount + 1;
+				push(result);
+				return true;
+			}
 			default:
 				break;
 		}

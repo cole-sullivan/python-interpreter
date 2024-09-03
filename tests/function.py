@@ -1,17 +1,17 @@
 def testcase1():
-    return "Success! [1]"
+    print("Success! [1]")
 
 def testcase2():
     def nested():
         return "Success! [2]"
 
-    return nested()
+    print(nested())
 
 def testcase3(var):
     if var:
-        return "Success! [3]"
+        print("Success! [3]")
     else:
-        return "Failure... [3]"
+        print("Failure... [3]")
 
 testcase1()
 testcase2()
