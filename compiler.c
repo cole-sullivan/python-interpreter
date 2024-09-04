@@ -15,6 +15,7 @@ typedef struct {
 	Token previous;
 	bool hadError;
 	bool panicMode;
+	bool localVar;
 } Parser;
 
 typedef enum {
@@ -378,6 +379,7 @@ static void namedVariable(Token name, bool canAssign) {
 	int arg = resolveLocal(current, &name);
 
 	if (arg != -1) {
+		parser.localVar = true;
 		getOp = OP_GET_LOCAL;
 		setOp = OP_SET_LOCAL;
 	} else {
@@ -607,7 +609,12 @@ static void funDeclaration() {
 
 static void expressionStatement() {
 	expression();
-	emitByte(OP_POP);
+
+	if (!parser.localVar) {
+		emitByte(OP_POP);
+	} else {
+		parser.localVar = false;
+	}
 }
 
 static void ifStatement() {
@@ -709,6 +716,7 @@ ObjFunction* compile(const char* source) {
 
 	parser.hadError = false;
 	parser.panicMode = false;
+	parser.localVar = false;
 
 	advance();
 

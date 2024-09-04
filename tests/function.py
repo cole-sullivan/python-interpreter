@@ -13,6 +13,13 @@ def testcase3(var):
     else:
         print("Failure... [3]")
 
+def testcase4():
+    a = "[ A ]"
+    b = "[ B ]"
+    c = "[ C ]"
+    print(a, b, c)
+
 testcase1()
 testcase2()
 testcase3(True)
+testcase4()
