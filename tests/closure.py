@@ -1,6 +1,6 @@
-x = "global"
+x = "Success! [2]"
 def testcase_outer():
-    x = "outer"
+    x = "Success! [1]"
     def testcase_inner():
         print(x)
     testcase_inner()

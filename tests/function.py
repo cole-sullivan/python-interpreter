@@ -14,10 +14,12 @@ def testcase3(var):
         print("Failure... [3]")
 
 def testcase4():
-    a = "[ A ]"
-    b = "[ B ]"
-    c = "[ C ]"
-    print(a, b, c)
+    a = "Success! 1/3 [4]"
+    b = "Success! 2/3 [4]"
+    c = "Success! 3/3 [4]"
+    print(a)
+    print(b)
+    print(c)
 
 testcase1()
 testcase2()
