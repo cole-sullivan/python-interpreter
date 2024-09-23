@@ -19,6 +19,16 @@ static Obj* allocateObject(size_t size, ObjType type) {
 	return object;
 }
 
+ObjList* newList() {
+	ObjList* list = ALLOCATE_OBJ(ObjList, OBJ_LIST);
+	initValueArray(&list->elements);
+	return list;
+}
+
+void appendList(ObjList* list, Value value) {
+	writeValueArray(&list->elements, value);
+}
+
 ObjClosure* newClosure(ObjFunction* function) {
 	ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*,
 									function->upvalueCount);
@@ -115,6 +125,17 @@ void printObject(Value value) {
 		case OBJ_FUNCTION:
 			printFunction(AS_FUNCTION(value));
 			break;
+		case OBJ_LIST: {
+			ObjList* list = AS_LIST(value);
+			printf("[");
+			for (int i = 0; i < list->elements.count; i++) {
+				printValue(list->elements.values[i]);
+				if (i < list->elements.count - 1)
+					printf(", ");
+			}
+			printf("]");
+			break;
+		}
 		case OBJ_NATIVE:
 			printf("<native fn>");
 			break;

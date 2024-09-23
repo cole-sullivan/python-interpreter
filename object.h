@@ -9,11 +9,13 @@
 
 #define IS_CLOSURE(value)      isObjType(value, OBJ_CLOSURE)
 #define IS_FUNCTION(value)     isObjType(value, OBJ_FUNCTION)
+#define IS_LIST(value)         isObjType(value, OBJ_LIST)
 #define IS_NATIVE(value)       isObjType(value, OBJ_NATIVE)
 #define IS_STRING(value)       isObjType(value, OBJ_STRING)
 
 #define AS_CLOSURE(value)      ((ObjClosure*)AS_OBJ(value))
 #define AS_FUNCTION(value)     ((ObjFunction*)AS_OBJ(value))
+#define AS_LIST(value)         ((ObjList*)AS_OBJ(value))
 #define AS_NATIVE(value) \
 	(((ObjNative*)AS_OBJ(value))->function)
 #define AS_STRING(value)       ((ObjString*)AS_OBJ(value))
@@ -22,6 +24,7 @@
 typedef enum {
 	OBJ_CLOSURE,
 	OBJ_FUNCTION,
+	OBJ_LIST,
 	OBJ_NATIVE,
 	OBJ_STRING,
 	OBJ_UPVALUE,
@@ -54,6 +57,11 @@ struct ObjString {
 	uint32_t hash;
 };
 
+typedef struct {
+	Obj obj;
+	ValueArray elements;
+} ObjList;
+
 typedef struct ObjUpvalue {
 	Obj obj;
 	Value* location;
@@ -68,6 +76,8 @@ typedef struct {
 	int upvalueCount;
 } ObjClosure;
 
+ObjList* newList();
+void appendList(ObjList* list, Value value);
 ObjClosure* newClosure(ObjFunction* function);
 ObjFunction* newFunction();
 ObjNative* newNative(NativeFn function);

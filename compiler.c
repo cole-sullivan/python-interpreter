@@ -389,6 +389,18 @@ static void grouping(bool canAssign) {
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
 
+static void list(bool canAssign) {
+	int elementCount = 0;
+	if (!check(TOKEN_RIGHT_BRACKET)) {
+		do {
+			expression();
+			elementCount++;
+		} while (match(TOKEN_COMMA));
+	}
+	consume(TOKEN_RIGHT_BRACKET, "Expect ']' after list elements.");
+	emitBytes(OP_CONSTRUCT_LIST, elementCount);
+}
+
 static void number(bool canAssign) {
 	double value = strtod(parser.previous.start, NULL);
 	emitConstant(NUMBER_VAL(value));
@@ -470,7 +482,7 @@ ParseRule rules[] = {
 	[TOKEN_RIGHT_PAREN]       = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_LEFT_BRACE]        = {NULL,     NULL,   PREC_NONE}, 
 	[TOKEN_RIGHT_BRACE]       = {NULL,     NULL,   PREC_NONE},
-	[TOKEN_LEFT_BRACKET]      = {NULL,     NULL,   PREC_NONE}, 
+	[TOKEN_LEFT_BRACKET]      = {list,     NULL,   PREC_NONE}, 
 	[TOKEN_RIGHT_BRACKET]     = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_COMMA]             = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_DOT]               = {NULL,     NULL,   PREC_NONE},
